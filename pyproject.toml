@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "drf-bulk-ops"
+version = "0.1.0"
+description = "Bulk operations for Django REST Framework"
+requires-python = ">=3.8"
+keywords = ["django", "drf", "rest-framework", "operations", "bulk"]
+dependencies = [
+    "djangorestframework>=3.14",
+]
+
+[tool.setuptools.packages.find]
+include = ["drf_bulk_ops*"]

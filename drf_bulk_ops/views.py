@@ -2,13 +2,16 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.exceptions import ValidationError
 from drf_bulk_ops import mixins
 
+
 class GenericBulkAPIView(GenericAPIView):
     """
     Base API View for bulk operations.
     Provides hooks for developers to extend and customize bulk behaviors.
     """
+
     batch_size = 1000
     lookup_field = "id"
+    atomic = False 
 
     def get_batch_size(self):
         return self.batch_size
@@ -20,12 +23,20 @@ class GenericBulkAPIView(GenericAPIView):
         except TypeError as exc:
             raise ValidationError(f"Invalid data for {model_class.__name__}: {exc}")
 
-    def get_queryset_for_destroy(self, data_list):
+    def get_queryset_for_destroy(self):
         key = f"{self.lookup_field}s"
-        identifiers = data_list.get(key, [])
+
+        raw_identifiers = self.request.query_params.getlist(key)
+
+        identifiers = []
+        for item in raw_identifiers:
+            # Handle comma-separated values like ?ids=1,2,3
+            identifiers.extend([i.strip() for i in item.split(",") if i.strip()])
 
         if not identifiers:
-            raise ValidationError({key: f"No {key} provided for deletion."})
+            raise ValidationError(
+                {key: f"No {key} provided in query parameters for deletion."}
+            )
 
         return self.get_queryset().filter(**{f"{self.lookup_field}__in": identifiers})
 
@@ -40,7 +51,10 @@ class GenericBulkAPIView(GenericAPIView):
         return self.get_queryset().filter(**{f"{self.lookup_field}__in": unique_values})
 
 
-class BulkCreateView(mixins.BulkCreateMixin, GenericBulkAPIView):
+class BulkCreateView(
+    mixins.BulkCreateMixin,
+    GenericBulkAPIView,
+):
     def post(self, request, *args, **kwargs):
         return self.bulk_create(request, *args, **kwargs)
 
@@ -55,7 +69,9 @@ class BulkDestroyView(mixins.BulkDestroyMixin, GenericBulkAPIView):
         return self.bulk_destroy(request, *args, **kwargs)
 
 
-class BulkCreateDestroyView(mixins.BulkDestroyMixin, mixins.BulkCreateMixin, GenericBulkAPIView):
+class BulkCreateDestroyView(
+    mixins.BulkDestroyMixin, mixins.BulkCreateMixin, GenericBulkAPIView
+):
     def post(self, request, *args, **kwargs):
         return self.bulk_create(request, *args, **kwargs)
 

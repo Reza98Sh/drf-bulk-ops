@@ -45,16 +45,13 @@ class BulkUpdateOperation:
     def update(self, data_list):
         update_fields = self.get_update_fields()
         
-        # Optimize query but ensure we only map fields we need
         qs = self.queryset.only(self.lookup_field, *update_fields)
         
-        # Fixed: Use self.lookup_field dynamically instead of hardcoding .id
         instances = {getattr(obj, self.lookup_field): obj for obj in qs}
 
         updated_instances = []
 
         for item in data_list:
-            # Fixed: Use lookup_field instead of hardcoded 'id'
             obj_id = item.get(self.lookup_field)
             obj = instances.get(obj_id)
 
@@ -63,7 +60,6 @@ class BulkUpdateOperation:
 
             for key, value in item.items():
                 if key != self.lookup_field:
-                    # Fixed: Use setattr to properly trigger Django field descriptors
                     setattr(obj, key, value)
 
             updated_instances.append(obj)
@@ -79,7 +75,5 @@ class BulkDeleteOperation:
         self.queryset = queryset
 
     def delete(self):
-        # Note: queryset.delete() doesn't naturally support batch_size in Django. 
-        # If batching is strictly required for memory limits on huge deletes, 
-        # you might need to slice and loop, otherwise this ignores batch_size.
+
         return self.queryset.delete()
