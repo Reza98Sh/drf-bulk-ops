@@ -1,7 +1,7 @@
 from rest_framework.generics import GenericAPIView
 from rest_framework.exceptions import ValidationError
 from drf_bulk_ops import mixins
-
+from drf_bulk_ops.serializer import BulkOpsSerializerMixin
 
 class GenericBulkAPIView(GenericAPIView):
     """
@@ -9,9 +9,15 @@ class GenericBulkAPIView(GenericAPIView):
     Provides hooks for developers to extend and customize bulk behaviors.
     """
 
-    batch_size = 1000
+    batch_size = 500
     lookup_field = "id"
-    atomic = False 
+    documentation = True
+    atomic = False
+    
+    def get_serializer_class(self):
+        if not isinstance(self.serializer_class,BulkOpsSerializerMixin) : 
+            ...
+        return super().get_serializer_class()
 
     def get_batch_size(self):
         return self.batch_size
@@ -77,3 +83,8 @@ class BulkCreateDestroyView(
 
     def delete(self, request, *args, **kwargs):
         return self.bulk_destroy(request, *args, **kwargs)
+
+class BulkUpsertView(mixins.BulkUpsertMixin, GenericBulkAPIView):
+    
+    def post(self, request, *args, **kwargs):
+        return self.bulk_upsert(request, *args, **kwargs)
