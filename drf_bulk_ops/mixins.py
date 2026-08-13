@@ -55,15 +55,15 @@ class BulkCreateMixin:
     def bulk_create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data, many=True)
         serializer.is_valid(raise_exception=True)
-        self.perform_bulk_create(serializer)
-        return Response(status=status.HTTP_201_CREATED)
+        instances = self.perform_bulk_create(serializer)
+        created_count = len(instances)
+        return Response({"created": created_count}, status=status.HTTP_201_CREATED)
 
     def perform_bulk_create(self, serializer):
         instances = self.get_instances_for_create(serializer.validated_data)
-        atomic = getattr(self, "atomic", True)
 
         bulk_operator = BulkCreateOperation(
-            self.get_serializer_class(), batch_size=self.get_batch_size(), atomic=atomic
+            self.get_serializer_class(), batch_size=self.get_batch_size(), atomic=self.atomic
         )
         # Execution is handled inside the operation itself
         return bulk_operator.create(
@@ -108,20 +108,20 @@ class BulkUpdateMixin:
     def bulk_update(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data, many=True)
         serializer.is_valid(raise_exception=True)
-        self.perform_bulk_update(serializer)
-        return Response(status=status.HTTP_200_OK)
+        instances = self.perform_bulk_update(serializer)
+        created_count = len(instances)
+        return Response({"updated": created_count}, status=status.HTTP_201_CREATED)
 
     def perform_bulk_update(self, serializer):
         data_list = serializer.validated_data
         queryset = self.get_queryset_for_update(data_list)
-        atomic = getattr(self, "atomic", True)
 
         bulk_operator = BulkUpdateOperation(
             queryset=queryset,
             serializer=self.get_serializer_class(),
             lookup_field=self.lookup_field,
             batch_size=self.get_batch_size(),
-            atomic=atomic,
+            atomic=self.atomic,
         )
         return bulk_operator.update(data_list)
 
@@ -155,15 +155,14 @@ class BulkDestroyMixin:
     # ______API Documentation____
 
     def bulk_destroy(self, request, *args, **kwargs):
-        self.perform_bulk_destroy()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        deleted_count, _ = self.perform_bulk_destroy()
+
+        return Response({"deleted": deleted_count}, status=status.HTTP_201_CREATED)
 
     def perform_bulk_destroy(self):
         queryset = self.get_queryset_for_destroy()
-        # Retrieve atomic setting safely
-        atomic = getattr(self, "atomic", True)
 
-        bulk_operator = BulkDeleteOperation(queryset=queryset, atomic=atomic)
+        bulk_operator = BulkDeleteOperation(queryset=queryset, atomic=self.atomic)
         return bulk_operator.delete()
 
 
@@ -206,28 +205,33 @@ class BulkUpsertMixin:
         # Validate all incoming data
         serializer = self.get_serializer(data=request.data, many=True)
         serializer.is_valid(raise_exception=True)
-        self.perform_bulk_upsert(serializer)
-        return Response(status=status.HTTP_200_OK)
+        created_instances, updated_instances = self.perform_bulk_upsert(serializer)
+
+        created_count = len(created_instances)
+        updated_count = len(updated_instances)
+
+        return Response(
+            {"created": created_count, "updated": updated_count},
+            status=status.HTTP_200_OK,
+        )
 
     def perform_bulk_update(self, data_list):
-        atomic = getattr(self, "atomic", True)
         queryset = self.get_queryset_for_update(data_list)
         bulk_update_operator = BulkUpdateOperation(
             queryset=queryset,
             serializer=self.get_serializer_class(),
             lookup_field=self.lookup_field,
             batch_size=self.get_batch_size(),
-            atomic=atomic,
+            atomic=self.atomic,
         )
-        bulk_update_operator.update(data_list)
+        return bulk_update_operator.update(data_list)
 
     def perform_bulk_create(self, data_list):
-        atomic = getattr(self, "atomic", True)
         instances = self.get_instances_for_create(data_list)
         bulk_create_operator = BulkCreateOperation(
-            self.get_serializer_class(), batch_size=self.get_batch_size(), atomic=atomic
+            self.get_serializer_class(), batch_size=self.get_batch_size(), atomic=self.atomic
         )
-        bulk_create_operator.create(instances)
+        return bulk_create_operator.create(instances)
 
     def perform_bulk_upsert(self, serializer):
         data_list = serializer.validated_data
@@ -244,10 +248,14 @@ class BulkUpsertMixin:
                 # No lookup field value, so it's a new instance to create
                 items_to_create.append(item)
 
+        created_instances = []
+        updated_instances = []
         # Perform create for new items
         if items_to_create:
-            self.perform_bulk_create(items_to_create)
+            created_instances = self.perform_bulk_create(items_to_create)
 
         # Perform update for existing items
         if items_to_update:
-            self.perform_bulk_update(items_to_update)
+            updated_instances = self.perform_bulk_update(items_to_update)
+
+        return created_instances, updated_instances

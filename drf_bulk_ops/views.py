@@ -12,12 +12,16 @@ class GenericBulkAPIView(GenericAPIView):
     batch_size = 500
     lookup_field = "id"
     documentation = True
-    atomic = False
+    atomic = True
     
     def get_serializer_class(self):
-        if not isinstance(self.serializer_class,BulkOpsSerializerMixin) : 
-            ...
-        return super().get_serializer_class()
+        serializer_class = super().get_serializer_class()
+        # Verify if the serializer class inherits from BulkOpsSerializerMixin
+        if not issubclass(serializer_class, BulkOpsSerializerMixin):
+            raise TypeError(
+                f"Serializer class {serializer_class.__name__} must inherit from BulkOpsSerializerMixin"
+            )
+        return serializer_class
 
     def get_batch_size(self):
         return self.batch_size

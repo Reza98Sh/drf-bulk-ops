@@ -1,7 +1,7 @@
 from django.db import transaction
 
 class BaseBulkOperation:
-    def __init__(self, atomic=True, batch_size=None):
+    def __init__(self, atomic, batch_size=None):
         self.atomic = atomic
         self.batch_size = batch_size
 
@@ -17,7 +17,7 @@ class BaseBulkOperation:
 
 
 class BulkCreateOperation(BaseBulkOperation):
-    def __init__(self,  serializer, atomic=True, batch_size=None):
+    def __init__(self,  serializer, atomic, batch_size=None):
         super().__init__(atomic=atomic, batch_size=batch_size)
         self.serializer = serializer
 
@@ -31,11 +31,11 @@ class BulkCreateOperation(BaseBulkOperation):
         )
         
     def create(self, instances):
-        self.execute(instances)
+        return self.execute(instances)
 
 
 class BulkUpdateOperation(BaseBulkOperation):
-    def __init__(self, queryset, serializer, lookup_field, atomic=True, batch_size=None):
+    def __init__(self, queryset, serializer, lookup_field, atomic, batch_size=None):
         super().__init__(atomic=atomic, batch_size=batch_size)
         self.queryset = queryset
         self.serializer = serializer
@@ -51,17 +51,19 @@ class BulkUpdateOperation(BaseBulkOperation):
         model_field_names = {
             field.name for field in model._meta.concrete_fields
         }
-
+        
         writable_fields = []
         for name, field in self.serializer().fields.items():
+            # Skip read-only fields
             if field.read_only:
                 continue
-            if name in {model._meta.pk.name, "pk", self.lookup_field}:
-                continue
-            if name in model_field_names:
+                
+            # Exclude the lookup field from the update list
+            if name in model_field_names and name != self.lookup_field:
                 writable_fields.append(name)
 
         return writable_fields
+
 
     def _run(self, data_list):
         update_fields = self.get_update_fields()
@@ -93,7 +95,7 @@ class BulkUpdateOperation(BaseBulkOperation):
 
 
 class BulkDeleteOperation(BaseBulkOperation):
-    def __init__(self, queryset, atomic=True):
+    def __init__(self, queryset, atomic):
         super().__init__(atomic=atomic)
         self.queryset = queryset
 

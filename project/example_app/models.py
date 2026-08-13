@@ -2,7 +2,7 @@ from django.db import models
 
 class Product(models.Model):
     """Sample model for testing bulk operations"""
-    name = models.CharField(max_length=200)
+    name = models.CharField(max_length=200, unique=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     stock = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
