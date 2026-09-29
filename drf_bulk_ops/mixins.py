@@ -1,6 +1,7 @@
 from rest_framework.response import Response
 from rest_framework import status
-from drf_bulk_ops.operations import (
+
+from .operations import (
     BulkCreateOperation,
     BulkUpdateOperation,
     BulkDeleteOperation,
@@ -61,14 +62,9 @@ class BulkCreateMixin:
 
     def perform_bulk_create(self, serializer):
         instances = self.get_instances_for_create(serializer.validated_data)
-
-        bulk_operator = BulkCreateOperation(
-            self.get_serializer_class(), batch_size=self.get_batch_size(), atomic=self.atomic
-        )
-        # Execution is handled inside the operation itself
-        return bulk_operator.create(
-            instances,
-        )
+        query = BulkCreateOperation(self.get_serializer_class()).build(instances)
+        created, = self.get_query().execute(query)
+        return created
 
 
 class BulkUpdateMixin:
@@ -115,15 +111,14 @@ class BulkUpdateMixin:
     def perform_bulk_update(self, serializer):
         data_list = serializer.validated_data
         queryset = self.get_queryset_for_update(data_list)
-
-        bulk_operator = BulkUpdateOperation(
+        query = BulkUpdateOperation(
             queryset=queryset,
             serializer=self.get_serializer_class(),
             lookup_field=self.lookup_field,
-            batch_size=self.get_batch_size(),
-            atomic=self.atomic,
-        )
-        return bulk_operator.update(data_list)
+        ).build(data_list)
+        
+        updated, = self.get_query().execute(query)
+        return updated
 
 
 class BulkDestroyMixin:
@@ -161,9 +156,9 @@ class BulkDestroyMixin:
 
     def perform_bulk_destroy(self):
         queryset = self.get_queryset_for_destroy()
-
-        bulk_operator = BulkDeleteOperation(queryset=queryset, atomic=self.atomic)
-        return bulk_operator.delete()
+        query = BulkDeleteOperation(queryset).build()
+        deleted, = self.get_query().execute(query)
+        return deleted
 
 
 class BulkUpsertMixin:
@@ -215,47 +210,44 @@ class BulkUpsertMixin:
             status=status.HTTP_200_OK,
         )
 
-    def perform_bulk_update(self, data_list):
-        queryset = self.get_queryset_for_update(data_list)
-        bulk_update_operator = BulkUpdateOperation(
-            queryset=queryset,
-            serializer=self.get_serializer_class(),
-            lookup_field=self.lookup_field,
-            batch_size=self.get_batch_size(),
-            atomic=self.atomic,
-        )
-        return bulk_update_operator.update(data_list)
-
-    def perform_bulk_create(self, data_list):
-        instances = self.get_instances_for_create(data_list)
-        bulk_create_operator = BulkCreateOperation(
-            self.get_serializer_class(), batch_size=self.get_batch_size(), atomic=self.atomic
-        )
-        return bulk_create_operator.create(instances)
-
     def perform_bulk_upsert(self, serializer):
         data_list = serializer.validated_data
 
-        # Separate data into items to create and items to update
         items_to_create = []
         items_to_update = []
 
         for item in data_list:
             if item.get(self.lookup_field):
-                # Has a lookup field value, so it should be updated
                 items_to_update.append(item)
             else:
-                # No lookup field value, so it's a new instance to create
                 items_to_create.append(item)
+
+        queries = []
+        if items_to_create:
+            instances = self.get_instances_for_create(items_to_create)
+            queries.append(
+                BulkCreateOperation(self.get_serializer_class()).build(instances)
+            )
+        if items_to_update:
+            queryset = self.get_queryset_for_update(items_to_update)
+            queries.append(
+                BulkUpdateOperation(
+                    queryset=queryset,
+                    serializer=self.get_serializer_class(),
+                    lookup_field=self.lookup_field,
+                ).build(items_to_update)
+            )
 
         created_instances = []
         updated_instances = []
-        # Perform create for new items
-        if items_to_create:
-            created_instances = self.perform_bulk_create(items_to_create)
+        if not queries:
+            return created_instances, updated_instances
 
-        # Perform update for existing items
+        results = self.get_query().execute(*queries)
+        result_iter = iter(results)
+        if items_to_create:
+            created_instances = next(result_iter)
         if items_to_update:
-            updated_instances = self.perform_bulk_update(items_to_update)
+            updated_instances = next(result_iter)
 
         return created_instances, updated_instances

@@ -9,6 +9,7 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "rest_framework",
     "drf_spectacular",
+    "drf_bulk_ops",
     "example_app",
 ]
 

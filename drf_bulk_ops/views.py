@@ -1,7 +1,9 @@
 from rest_framework.generics import GenericAPIView
 from rest_framework.exceptions import ValidationError
-from drf_bulk_ops import mixins
-from drf_bulk_ops.serializer import BulkOpsSerializerMixin
+
+from . import mixins
+from .queries import BulkQuery
+from .serializer import BulkOpsSerializerMixin
 
 class GenericBulkAPIView(GenericAPIView):
     """
@@ -25,6 +27,9 @@ class GenericBulkAPIView(GenericAPIView):
 
     def get_batch_size(self):
         return self.batch_size
+
+    def get_query(self):
+        return BulkQuery(atomic=self.atomic, batch_size=self.get_batch_size())
 
     def get_instances_for_create(self, data_list):
         model_class = self.get_serializer_class().Meta.model

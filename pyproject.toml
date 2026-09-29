@@ -1,16 +1,72 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "drf-bulk-ops"
 version = "0.1.0"
-description = "Bulk operations for Django REST Framework"
+description = "Bulk create, update, destroy, and upsert operations for Django REST Framework"
+readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.8"
-keywords = ["django", "drf", "rest-framework", "operations", "bulk"]
+authors = [
+    { name = "Ryan Sherman", email = "reza.sh.7798@gmail.com" },
+]
+keywords = [
+    "django",
+    "django-rest-framework",
+    "drf",
+    "bulk",
+    "bulk-create",
+    "bulk-update",
+    "bulk-delete",
+    "upsert",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Web Environment",
+    "Framework :: Django",
+    "Framework :: Django :: 4.2",
+    "Framework :: Django :: 5.0",
+    "Framework :: Django :: 5.1",
+    "Framework :: Django :: 5.2",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 dependencies = [
+    "Django>=4.2",
     "djangorestframework>=3.14",
 ]
 
+[project.optional-dependencies]
+spectacular = [
+    "drf-spectacular>=0.27",
+]
+dev = [
+    "build>=1.0",
+    "twine>=5.0",
+    "pytest>=7.0",
+    "pytest-django>=4.5",
+    "drf-spectacular>=0.27",
+]
+
+[project.urls]
+Homepage = "https://github.com/Reza98Sh/drf-bulk-ops"
+Repository = "https://github.com/Reza98Sh/drf-bulk-ops"
+Issues = "https://github.com/Reza98Sh/drf-bulk-ops/issues"
+
 [tool.setuptools.packages.find]
+where = ["."]
 include = ["drf_bulk_ops*"]
+exclude = ["project*", "tests*"]
