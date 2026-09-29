@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "drf-bulk-ops"
-version = "0.1.0"
+version = "0.1.1"
 description = "Bulk create, update, destroy, and upsert operations for Django REST Framework"
 readme = "README.md"
 license = { file = "LICENSE" }
